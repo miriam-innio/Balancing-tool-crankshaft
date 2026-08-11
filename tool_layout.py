@@ -33,20 +33,20 @@ app.layout = html.Div([
         }
     ),
 
-    #html.A(
-        #"Open User Manual",
-        #href="/assets/User_Manual.pdf",
-        #target="_blank",
-        #style={
-            #"display": "block",
-            #"textAlign": "center",
-            #"fontFamily": "'Segoe UI', Arial, sans-serif",
-            #"marginBottom": "30px",
-            #"color": "#1f77b4",
-            #"textDecoration": "none",
-            #"fontWeight": "bold"
-        #}
-    #),
+    html.A(
+        "Open User Manual",
+        href="assets/User Manual.pdf",
+        target="_blank",
+        style={
+            "display": "block",
+            "textAlign": "center",
+            "fontFamily": "'Segoe UI', Arial, sans-serif",
+            "marginBottom": "30px",
+            "color": "#EF773C",
+            "textDecoration": "none",
+            "fontWeight": "bold"
+        }
+    ),
 
 
     dcc.Upload(
@@ -89,7 +89,7 @@ app.layout = html.Div([
             style={
                 "fontSize": "18px",
                 "padding": "12px 24px",
-                "backgroundColor": "#2e8b57",
+                "backgroundColor": "#24DB82", #INNIO grün!!! orange: EF773C
                 "color": "white",
                 "border": "none",
                 "borderRadius": "8px",
@@ -137,9 +137,50 @@ def show_uploaded_filename(filename): #direkt zeigen file uploaded und welche Da
         return "No file uploaded yet."
     
     return html.Div([
-        html.Span("✓ Uploaded file: ", style={"color": "#2e8b57", "fontWeight": "bold"}),
+        html.Span("✓ Uploaded file: ", style={"color": "#24DB82", "fontWeight": "bold"}),
         html.Span(filename)
     ])
+
+def make_table(dataframe):
+    return dash_table.DataTable(
+        data=dataframe.to_dict("records"),
+        columns=[{"name": col, "id": col} for col in dataframe.columns],
+        page_size=10,
+        style_table={"overflowX": "auto"},
+        style_cell={
+            "textAlign": "center",
+            "padding": "8px",
+            "fontFamily": "'Segoe UI', Arial, sans-serif"
+        },
+        style_header={
+            "fontWeight": "bold",
+            "backgroundColor": "#f2f2f2"
+        }
+    )
+
+tab_style = {
+    "fontFamily": "'Segoe UI', Arial, sans-serif",
+    "padding": "10px 16px",
+    "backgroundColor": "#f9f9f9",
+    "color": "#444444",
+    "borderLeft": "1px solid #dddddd",
+    "borderRight": "1px solid #dddddd",
+    "borderBottom": "1px solid #dddddd",
+    "borderTop": "3px solid transparent"
+}
+
+tab_selected_style = {
+    "fontFamily": "'Segoe UI', Arial, sans-serif",
+    "padding": "10px 16px",
+    "backgroundColor": "white",
+    "color": "#24DB82",
+    "fontWeight": "600",
+    "borderLeft": "1px solid #dddddd",
+    "borderRight": "1px solid #dddddd",
+    "borderBottom": "1px solid white",
+    "borderTop": "3px solid #24DB82"
+}
+
 
 @app.callback(
     Output("status-message", "children"),
@@ -163,27 +204,57 @@ def run_calculation(n_clicks, contents, filename):
             tmp_path = tmp.name
 
         result = run_balancing_from_excel(tmp_path, sheet_name="Balancing")
-        df = result["results_df"]
+        df = result["results_df"] #alles in DataFrame
+        overview_df = df[["Case number", "Balancing ratio", "F_r (N)", "M_r (Nmm)"]]
+        low_order_df = df[["Case number", "F_o 1H (N)", "F_o 1V (N)", "M_o 1H (Nmm)", "M_o 1V (Nmm)"]]
+        high_order_df = df[["Case number", "F_o 4H (N)", "F_o 4V (N)", "M_o 4H (Nmm)", "M_o 4V (Nmm)",
+                             "F_o 6H (N)", "F_o 6V (N)", "M_o 6H (Nmm)", "M_o 6V (Nmm)", 
+                             "F_o 8H (N)", "F_o 8V (N)", "M_o 8H (Nmm)", "M_o 8V (Nmm)"]]
+        full_df = df 
 
-        table = dash_table.DataTable(
-            data=df.to_dict("records"),
-            columns=[{"name": col, "id": col} for col in df.columns],
-            page_size=10,
-            style_table={"overflowX": "auto"},
-            style_cell={
-                "textAlign": "center",
-                "padding": "8px",
-                "fontFamily": "'Segoe UI', Arial, sans-serif"
-            },
-            style_header={
-                "fontWeight": "bold",
-                "backgroundColor": "#f2f2f2"
-            }
-        )
 
         os.remove(tmp_path)
+        
+        tabs = dcc.Tabs([
+    dcc.Tab(
+        label="Overview",
+        children=[
+            html.Br(),
+            make_table(overview_df)
+        ],
+        style=tab_style,
+        selected_style=tab_selected_style
+    ),
+    dcc.Tab(
+        label="Low Order Harmonics (1H / 2H)",
+        children=[
+            html.Br(),
+            make_table(low_order_df)
+        ],
+        style=tab_style,
+        selected_style=tab_selected_style
+    ),
+    dcc.Tab(
+        label="High Order Harmonics (4H / 6H / 8H)",
+        children=[
+            html.Br(),
+            make_table(high_order_df)
+        ],
+        style=tab_style,
+        selected_style=tab_selected_style
+    ),
+    dcc.Tab(
+        label="Full Results",
+        children=[
+            html.Br(),
+            make_table(full_df)
+        ],
+        style=tab_style,
+        selected_style=tab_selected_style
+    )
+])
 
-        return f"Calculation successful: {filename}", table
+        return f"Calculation successful: {filename}", tabs
 
     except Exception as e:
         return f"Error: {str(e)}", ""
