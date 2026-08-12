@@ -1,4 +1,5 @@
 import base64
+from email.mime import message
 import io
 import tempfile #temporäre Dateien auf Rechner
 import os #wieder löschen
@@ -11,6 +12,27 @@ from tool_service import run_balancing_from_excel
 #App erzeugen
 app = Dash(__name__)
 
+def make_upload_component():
+    return dcc.Upload(
+        id="upload-file",
+        children=html.Div([
+            "Drag and Drop or ",
+            html.A("Select an Excel File")
+        ]),
+        style={
+            "width": "50%",
+            "height": "60px",
+            "lineHeight": "60px",
+            "borderWidth": "1px",
+            "borderStyle": "dashed",
+            "borderRadius": "8px",
+            "textAlign": "center",
+            "fontFamily": "'Segoe UI', Arial, sans-serif",
+            "color": "#444444",
+            "margin": "20px auto"
+        },
+        multiple=False
+    )
 #Layout
 app.layout = html.Div([
     html.H1( #titel (Überschrift)
@@ -33,7 +55,7 @@ app.layout = html.Div([
         }
     ),
 
-    html.A(
+    html.A( #user manual
         "Open User Manual",
         href="assets/User Manual.pdf",
         target="_blank",
@@ -47,30 +69,15 @@ app.layout = html.Div([
             "fontWeight": "bold"
         }
     ),
+    dcc.Store(id="stored-file-data"), #damit Datai gelöscht werden kann, Datai gespeichert
 
 
-    dcc.Upload(
-        id="upload-file",
-        #text der im Upload-Feld angezeigt wird
-        children=html.Div([
-            "Drag and Drop or ",
-            html.A("Select an Excel File")
-        ]),
-        style={
-            "width": "50%",
-            "height": "60px",
-            "lineHeight": "60px",
-            "borderWidth": "1px",
-            "borderStyle": "dashed",
-            "borderRadius": "8px",
-            "textAlign": "center",
-            "fontFamily": "'Segoe UI', Arial, sans-serif",
-            "color": "#444444",
-            "margin": "20px auto"
-
-        },
-        multiple=False #nur 1 Datei
+    html.Div(
+    id="upload-container",
+    children=make_upload_component()
     ),
+
+
     html.Div(
         id="uploaded-file-info",
         style={
@@ -80,6 +87,41 @@ app.layout = html.Div([
             "color": "#444444"
         }
     ),
+
+    html.Div(
+        id="uploaded-file-validation",
+        style={
+            "textAlign": "center",
+            "marginTop": "6px",
+            "fontFamily": "'Segoe UI', Arial, sans-serif",
+            "color": "#444444"
+        }
+    ),
+
+
+    html.Div(
+        html.Button(
+            "Remove File",
+            id="remove-file-button",
+            n_clicks=0,
+            style={
+                "fontSize": "14px",
+                "padding": "8px 16px",
+                "backgroundColor": "#EF773C",
+                "color": "white",
+                "border": "none",
+                "borderRadius": "6px",
+                "cursor": "pointer",
+                "fontFamily": "'Segoe UI', Arial, sans-serif",
+                "fontWeight": "bold"
+            }
+        ),
+        style={
+            "textAlign": "center",
+            "marginTop": "10px"
+        }
+    ),
+
 
     html.Div(
         html.Button(
@@ -127,6 +169,9 @@ style={
     "padding": "30px"
 })
 
+
+
+
 #automatisch aufgerufen, wenn Button gedrückt wird
 @app.callback(
     Output("uploaded-file-info", "children"),
@@ -140,6 +185,104 @@ def show_uploaded_filename(filename): #direkt zeigen file uploaded und welche Da
         html.Span("✓ Uploaded file: ", style={"color": "#24DB82", "fontWeight": "bold"}),
         html.Span(filename)
     ])
+@app.callback(
+    Output("stored-file-data", "data"),
+    Input("upload-file", "contents"),
+    State("upload-file", "filename"),
+    prevent_initial_call=True
+)
+def store_uploaded_file(contents, filename):
+    if contents is None:
+        return None
+    return {
+        "contents": contents,
+        "filename": filename
+    }
+@app.callback(
+    Output("stored-file-data", "clear_data"),
+    Output("uploaded-file-info", "children", allow_duplicate=True),
+    Output("uploaded-file-validation", "children", allow_duplicate=True),
+    Output("status-message", "children", allow_duplicate=True),
+    Output("results-table", "children", allow_duplicate=True),
+    Input("remove-file-button", "n_clicks"),
+    prevent_initial_call=True
+)
+def remove_uploaded_file(n_clicks):
+    return True, "No file uploaded yet.", "", "", ""
+
+
+def validate_uploaded_excel(decoded_bytes):
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsm") as tmp:
+            tmp_path = tmp.name
+
+        with open(tmp_path, "wb") as f:
+            f.write(decoded_bytes)
+
+        xls = pd.ExcelFile(tmp_path)
+
+        if "Balancing" not in xls.sheet_names:
+            return False, "Missing required sheet: 'Balancing'"
+
+        # Table 1
+        table1 = pd.read_excel(tmp_path, sheet_name="Balancing", usecols="B:D", skiprows=3, nrows=4, header=None)
+        # Table 2
+        table2 = pd.read_excel(tmp_path, sheet_name="Balancing", usecols="F:H", skiprows=3, nrows=7, header=None)
+        # Table 3
+        table3 = pd.read_excel(tmp_path, sheet_name="Balancing", usecols="J:L", skiprows=3, nrows=6, header=None)
+
+        if table1.dropna(how="all").shape[0] < 4:
+            return False, "Table 1 in sheet 'Balancing' is incomplete."
+
+        if table2.dropna(how="all").shape[0] < 7:
+            return False, "Table 2 in sheet 'Balancing' is incomplete."
+
+        if table3.dropna(how="all").shape[0] < 6:
+            return False, "Table 3 in sheet 'Balancing' is incomplete."
+
+        return True, "File structure looks valid."
+
+    except Exception as e:
+        return False, f"Validation failed: {str(e)}"
+
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except PermissionError:
+                pass
+
+@app.callback(
+    Output("uploaded-file-validation", "children"),
+    Input("upload-file", "contents"),
+    prevent_initial_call=True
+)
+def validate_uploaded_file(contents):
+    if contents is None:
+        return ""
+
+    try:
+        content_type, content_string = contents.split(",")
+        decoded = base64.b64decode(content_string)
+
+        is_valid, message = validate_uploaded_excel(decoded)
+
+        if is_valid:
+            return html.Div([
+                html.Span("✓ ", style={"color": "#24DB82", "fontWeight": "bold"}),
+                html.Span(message, style={"color": "#24DB82", "fontWeight": "bold"})
+            ])
+        else:
+            return html.Div([
+                html.Span("✗ ", style={"color": "red", "fontWeight": "bold"}),
+                html.Span(message, style={"color": "red", "fontWeight": "bold"})
+            ])
+
+    except Exception as e:
+        return html.Span(f"Validation failed: {str(e)}", style={"color": "red", "fontWeight": "bold"})
+
+
 
 def make_table(dataframe):
     return dash_table.DataTable(
@@ -181,19 +324,31 @@ tab_selected_style = {
     "borderTop": "3px solid #24DB82"
 }
 
+@app.callback(
+    Output("upload-container", "children"),
+    Input("remove-file-button", "n_clicks"),
+    prevent_initial_call=True
+)
+def reset_upload_component(n_clicks):
+    return make_upload_component()
+
+
 
 @app.callback(
     Output("status-message", "children"),
     Output("results-table", "children"),
     Input("run-button", "n_clicks"),
-    State("upload-file", "contents"),
-    State("upload-file", "filename"),
+    State("stored-file-data", "data"),
     prevent_initial_call=True
 )
 
-def run_calculation(n_clicks, contents, filename):
-    if contents is None:
+
+def run_calculation(n_clicks, stored_file_data):
+    if stored_file_data is None:
         return "Please upload an Excel file first.", ""
+
+    contents = stored_file_data["contents"]
+    filename = stored_file_data["filename"]
 
     try:
         content_type, content_string = contents.split(",")
