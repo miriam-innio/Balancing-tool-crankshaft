@@ -179,7 +179,7 @@ def mass_forces(eng_conf, crankshaft_geo, masses, throw_angles_mat, phi):
         foz_mat[:, :, indcase] = foz
         moy_mat[:, :, indcase] = moy
         moz_mat[:, :, indcase] = moz
-        
+    ''' sonst bei 1 case 2D arrays, bei mehreren cases 3D arrays    
     # If only one case, remove the case dimension
     if n_cases == 1:
         ratio_r_mat = ratio_r_mat[0]
@@ -191,5 +191,5 @@ def mass_forces(eng_conf, crankshaft_geo, masses, throw_angles_mat, phi):
         foz_mat = foz_mat[:, :, 0]
         moy_mat = moy_mat[:, :, 0]
         moz_mat = moz_mat[:, :, 0]
-
+    ''' 
     return ratio_r_mat, fry_mat, frz_mat, mry_mat, mrz_mat, harm_ord, foy_mat, foz_mat, moy_mat, moz_mat
