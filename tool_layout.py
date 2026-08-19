@@ -165,6 +165,12 @@ app.layout = html.Div([
             "marginTop": "25px"
         }
     ),
+    html.Div(
+        id="plot-section",
+        style={
+            "marginTop": "25px"
+        }
+    ),
 
     dcc.Download(id="download-results-excel")
 ], style={

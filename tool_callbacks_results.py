@@ -1,6 +1,7 @@
 import base64
 import os
 import tempfile
+import plotly.graph_objects as go
 
 import pandas as pd
 from dash import html, dcc, Input, Output, State
@@ -117,6 +118,102 @@ def build_input_box(table1, table2, table3, table4):
         "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
     })
 
+def build_plot_results_box(full_df):
+    case_tabs = []
+
+    for _, row in full_df.iterrows():
+        case_number = row["Case number"]
+
+        harmonics = ["1H", "2H", "4H", "6H", "8H"]
+        force_h = [
+            row["F_o 1H (N)"],
+            row["F_o 2H (N)"],
+            row["F_o 4H (N)"],
+            row["F_o 6H (N)"],
+            row["F_o 8H (N)"],
+        ]
+        force_v = [
+            row["F_o 1V (N)"],
+            row["F_o 2V (N)"],
+            row["F_o 4V (N)"],
+            row["F_o 6V (N)"],
+            row["F_o 8V (N)"],
+        ]
+
+        fig_h = go.Figure(
+            data=[
+                go.Bar(
+                    x=harmonics,
+                    y=force_h,
+                    marker_color="#24DB82",
+                    name="Force H"
+                )
+            ]
+        )
+        fig_h.update_layout(
+            title=f"Case {case_number} - Force H",
+            xaxis_title="Harmonics",
+            yaxis_title="Force (N)",
+            template="plotly_white",
+            height=400
+        )
+
+        fig_v = go.Figure(
+            data=[
+                go.Bar(
+                    x=harmonics,
+                    y=force_v,
+                    marker_color="#EF773C",
+                    name="Force V"
+                )
+            ]
+        )
+        fig_v.update_layout(
+            title=f"Case {case_number} - Force V",
+            xaxis_title="Harmonics",
+            yaxis_title="Force (N)",
+            template="plotly_white",
+            height=400
+        )
+
+        case_tabs.append(
+            dcc.Tab(
+                label=f"Case {int(case_number)}" if pd.notna(case_number) else "Case",
+                children=[
+                    html.Br(),
+                    dcc.Graph(figure=fig_h),
+                    html.Br(),
+                    dcc.Graph(figure=fig_v)
+                ],
+                style=tab_style,
+                selected_style=tab_selected_style
+            )
+        )
+
+    return html.Div([
+        html.Details([
+            html.Summary(
+                "Plot Results",
+                style={
+                    "cursor": "pointer",
+                    "fontWeight": "bold",
+                    "fontFamily": "'Segoe UI', Arial, sans-serif",
+                    "color": "#444444"
+                }
+            ),
+            html.Div([
+                dcc.Tabs(case_tabs)
+            ])
+        ])
+    ], style={
+        "backgroundColor": "white",
+        "border": "1px solid #e0e0e0",
+        "borderRadius": "10px",
+        "padding": "20px",
+        "width": "60%",
+        "margin": "25px auto 25px auto",
+        "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
+    })
 
 def register_results_callbacks(app):
 
@@ -125,6 +222,7 @@ def register_results_callbacks(app):
         Output("results-table", "children"),
         Output("export-section", "children"),
         Output("input-section", "children"),
+        Output("plot-section", "children"),
         Output("stored-results-data", "data"),
         Input("run-button", "n_clicks"),
         State("stored-file-data", "data"),
@@ -162,7 +260,8 @@ def register_results_callbacks(app):
 
             low_order_df = df[[
                 "Case number",
-                "F_o 1H (N)", "F_o 1V (N)", "M_o 1H (Nmm)", "M_o 1V (Nmm)"
+                "F_o 1H (N)", "F_o 1V (N)", "M_o 1H (Nmm)", "M_o 1V (Nmm)",
+                "F_o 2H (N)", "F_o 2V (N)", "M_o 2H (Nmm)", "M_o 2V (Nmm)"
             ]]
 
             high_order_df = df[[
@@ -217,6 +316,8 @@ def register_results_callbacks(app):
 
             export_box = build_export_box()
             input_box = build_input_box(table1, table2, table3, table4)
+            plot_box = build_plot_results_box(full_df_display)
+
 
             stored_results = {
                 "data": full_df.to_dict("records"),
@@ -227,12 +328,13 @@ def register_results_callbacks(app):
                 f"Calculation successful: {filename}",
                 tabs,
                 export_box,
+                plot_box,
                 input_box,
                 stored_results
             )
 
         except Exception as e:
-            return f"Error: {str(e)}", "", "", "", None
+            return f"Error: {str(e)}", "", "", "", "", None
 
         finally:
             if tmp_path and os.path.exists(tmp_path):
