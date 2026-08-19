@@ -53,6 +53,7 @@ app.layout = html.Div([
 
     dcc.Store(id="stored-file-data"),
     dcc.Store(id="stored-results-data"),
+    dcc.Store(id="stored-input-data"),
 
     html.Div([
         html.Div(
@@ -157,6 +158,13 @@ app.layout = html.Div([
             "marginTop": "25px"
         }
     ),
+    html.Div(
+        id="input-section",
+        style={
+            "marginTop": "25px"
+        }
+    ),
+
 
     dcc.Download(id="download-results-excel")
 ], style={

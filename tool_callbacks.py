@@ -14,6 +14,7 @@ from tool_components import (
     tab_selected_style,
 )
 from tool_validation import validate_uploaded_excel
+from tool_input_output import read_input_tables
 
 
 def register_callbacks(app):
@@ -52,12 +53,13 @@ def register_callbacks(app):
         Output("status-message", "children", allow_duplicate=True),
         Output("results-table", "children", allow_duplicate=True),
         Output("export-section", "children", allow_duplicate=True),
+        Output("input-section", "children", allow_duplicate=True),
         Output("stored-results-data", "clear_data"),
         Input("remove-file-button", "n_clicks"),
         prevent_initial_call=True
     )
     def remove_uploaded_file(n_clicks):
-        return True, "No file uploaded yet.", "", "", "", "", True
+        return True, "No file uploaded yet.", "", "", "", "", "", True
 
     @app.callback(
         Output("uploaded-file-validation", "children"),
@@ -103,6 +105,7 @@ def register_callbacks(app):
         Output("status-message", "children"),
         Output("results-table", "children"),
         Output("export-section", "children"),
+        Output("input-section", "children"),
         Output("stored-results-data", "data"),
         Input("run-button", "n_clicks"),
         State("stored-file-data", "data"),
@@ -110,7 +113,7 @@ def register_callbacks(app):
     )
     def run_calculation(n_clicks, stored_file_data):
         if stored_file_data is None:
-            return "Please upload an Excel file first.", "", "", None
+            return "Please upload an Excel file first.", "", "", "", None
 
         contents = stored_file_data["contents"]
         filename = stored_file_data["filename"]
@@ -157,6 +160,8 @@ def register_callbacks(app):
             low_order_df = clean_display_dataframe(low_order_df, threshold=1e-2, decimals=2)
             high_order_df = clean_display_dataframe(high_order_df, threshold=1e-2, decimals=2)
             full_df_display = clean_display_dataframe(full_df, threshold=1e-2, decimals=2)
+
+            table1, table2, table3, table4 = read_input_tables(tmp_path, sheet_name="Balancing")
 
             tabs = dcc.Tabs([
                 dcc.Tab(
@@ -240,6 +245,56 @@ def register_callbacks(app):
                 "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
             })
 
+            input_box = html.Div([
+                html.Details([
+                    html.Summary(
+                        "See Input Data",
+                        style={
+                            "cursor": "pointer",
+                            "fontWeight": "bold",
+                            "fontFamily": "'Segoe UI', Arial, sans-serif",
+                            "color": "#444444"
+                        }
+                    ),
+                    html.Div([
+                        dcc.Tabs([
+                            dcc.Tab(
+                                label="Table 1",
+                                children=[html.Br(), make_table(table1)],
+                                style=tab_style,
+                                selected_style=tab_selected_style
+                            ),
+                            dcc.Tab(
+                                label="Table 2",
+                                children=[html.Br(), make_table(table2)],
+                                style=tab_style,
+                                selected_style=tab_selected_style
+                            ),
+                            dcc.Tab(
+                                label="Table 3",
+                                children=[html.Br(), make_table(table3)],
+                                style=tab_style,
+                                selected_style=tab_selected_style
+                            ),
+                            dcc.Tab(
+                                label="Table 4",
+                                children=[html.Br(), make_table(table4)],
+                                style=tab_style,
+                                selected_style=tab_selected_style
+                            ),
+                        ])
+                    ])
+                ])
+            ], style={
+                "backgroundColor": "white",
+                "border": "1px solid #e0e0e0",
+                "borderRadius": "10px",
+                "padding": "20px",
+                "width": "60%",
+                "margin": "25px auto 25px auto",
+                "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
+            })
+
             stored_results = {
                 "data": full_df.to_dict("records"),
                 "columns": list(full_df.columns)
@@ -249,11 +304,12 @@ def register_callbacks(app):
                 f"Calculation successful: {filename}",
                 tabs,
                 export_box,
+                input_box,
                 stored_results
             )
 
         except Exception as e:
-            return f"Error: {str(e)}", "", "", None
+            return f"Error: {str(e)}", "", "", "", None
 
         finally:
             if tmp_path and os.path.exists(tmp_path):

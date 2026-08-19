@@ -149,7 +149,59 @@ def read_input_excel(file_path, sheet_name="Balancing"):
         "case_number": case_number,
         "throw_angles_mat": throw_angles_mat,
     }
+#for see input data in tool 
+def read_input_tables(file_path, sheet_name="Balancing"):
+    # Table 1
+    table1 = pd.read_excel(
+        file_path,
+        sheet_name=sheet_name,
+        usecols="B:D",
+        skiprows=3,
+        nrows=4,
+        header=None
+    )
+    table1.columns = ["Description", "Units", "Value"]
 
+    # Table 2
+    table2 = pd.read_excel(
+        file_path,
+        sheet_name=sheet_name,
+        usecols="F:H",
+        skiprows=3,
+        nrows=7,
+        header=None
+    )
+    table2.columns = ["Description", "Units", "Value"]
+
+    # Table 3
+    table3 = pd.read_excel(
+        file_path,
+        sheet_name=sheet_name,
+        usecols="J:L",
+        skiprows=3,
+        nrows=6,
+        header=None
+    )
+    table3.columns = ["Description", "Units", "Value"]
+
+    # Für Table 4 zuerst n_cyl und cyl_arr aus Table 1 lesen
+    n_cyl = int(table1.iloc[1, 2])
+    cyl_arr = table1.iloc[2, 2]
+    n_throw = n_cyl // 2 if cyl_arr == "Vee" else n_cyl
+
+    # Table 4
+    table4 = pd.read_excel(
+        file_path,
+        sheet_name=sheet_name,
+        usecols=range(13, 13 + n_throw + 1),
+        skiprows=3,
+        header=None
+    ).dropna(how="all")
+
+    # Spaltennamen für Table 4 setzen
+    table4.columns = ["Case number"] + [f"Throw {i} (deg)" for i in range(1, n_throw + 1)]
+
+    return table1, table2, table3, table4
 
 def build_results_dataframe(case_number, ratio_r, fry, frz, mry, mrz, foy, foz, moy, moz):
     fr = np.sqrt(fry ** 2 + frz ** 2)
