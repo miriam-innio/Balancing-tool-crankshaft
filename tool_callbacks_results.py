@@ -82,25 +82,25 @@ def build_input_box(table1, table2, table3, table4):
             html.Div([
                 dcc.Tabs([
                     dcc.Tab(
-                        label="Table 1",
+                        label="Engine configuration",
                         children=[html.Br(), make_table(table1)],
                         style=tab_style,
                         selected_style=tab_selected_style
                     ),
                     dcc.Tab(
-                        label="Table 2",
+                        label="Crankshaft geometry",
                         children=[html.Br(), make_table(table2)],
                         style=tab_style,
                         selected_style=tab_selected_style
                     ),
                     dcc.Tab(
-                        label="Table 3",
+                        label="Rotating and oscillating masses",
                         children=[html.Br(), make_table(table3)],
                         style=tab_style,
                         selected_style=tab_selected_style
                     ),
                     dcc.Tab(
-                        label="Table 4",
+                        label="throw angles",
                         children=[html.Br(), make_table(table4)],
                         style=tab_style,
                         selected_style=tab_selected_style
@@ -118,78 +118,7 @@ def build_input_box(table1, table2, table3, table4):
         "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
     })
 
-def build_plot_results_box(full_df):
-    case_tabs = []
-
-    for _, row in full_df.iterrows():
-        case_number = row["Case number"]
-
-        harmonics = ["1H", "2H", "4H", "6H", "8H"]
-        force_h = [
-            row["F_o 1H (N)"],
-            row["F_o 2H (N)"],
-            row["F_o 4H (N)"],
-            row["F_o 6H (N)"],
-            row["F_o 8H (N)"],
-        ]
-        force_v = [
-            row["F_o 1V (N)"],
-            row["F_o 2V (N)"],
-            row["F_o 4V (N)"],
-            row["F_o 6V (N)"],
-            row["F_o 8V (N)"],
-        ]
-
-        fig_h = go.Figure(
-            data=[
-                go.Bar(
-                    x=harmonics,
-                    y=force_h,
-                    marker_color="#24DB82",
-                    name="Force H"
-                )
-            ]
-        )
-        fig_h.update_layout(
-            title=f"Case {case_number} - Force H",
-            xaxis_title="Harmonics",
-            yaxis_title="Force (N)",
-            template="plotly_white",
-            height=400
-        )
-
-        fig_v = go.Figure(
-            data=[
-                go.Bar(
-                    x=harmonics,
-                    y=force_v,
-                    marker_color="#EF773C",
-                    name="Force V"
-                )
-            ]
-        )
-        fig_v.update_layout(
-            title=f"Case {case_number} - Force V",
-            xaxis_title="Harmonics",
-            yaxis_title="Force (N)",
-            template="plotly_white",
-            height=400
-        )
-
-        case_tabs.append(
-            dcc.Tab(
-                label=f"Case {int(case_number)}" if pd.notna(case_number) else "Case",
-                children=[
-                    html.Br(),
-                    dcc.Graph(figure=fig_h),
-                    html.Br(),
-                    dcc.Graph(figure=fig_v)
-                ],
-                style=tab_style,
-                selected_style=tab_selected_style
-            )
-        )
-
+def build_plot_results_box(case_options):
     return html.Div([
         html.Details([
             html.Summary(
@@ -202,7 +131,32 @@ def build_plot_results_box(full_df):
                 }
             ),
             html.Div([
-                dcc.Tabs(case_tabs)
+                html.Div([
+                    html.Label(
+                        "Case 1",
+                        style={"fontFamily": "'Segoe UI', Arial, sans-serif", "fontWeight": "bold"}
+                    ),
+                    dcc.Dropdown(
+                        id="plot-case-1",
+                        options=case_options,
+                        placeholder="Select first case",
+                        style={"marginBottom": "15px"}
+                    ),
+
+                    html.Label(
+                        "Case 2 (optional)",
+                        style={"fontFamily": "'Segoe UI', Arial, sans-serif", "fontWeight": "bold"}
+                    ),
+                    dcc.Dropdown(
+                        id="plot-case-2",
+                        options=case_options,
+                        placeholder="Select second case (optional)",
+                        style={"marginBottom": "20px"}
+                    ),
+                ], style={"marginTop": "15px"}),
+
+                dcc.Graph(id="plot-force-h"),
+                dcc.Graph(id="plot-force-v")
             ])
         ])
     ], style={
@@ -214,6 +168,7 @@ def build_plot_results_box(full_df):
         "margin": "25px auto 25px auto",
         "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.08)"
     })
+
 
 def register_results_callbacks(app):
 
@@ -230,7 +185,7 @@ def register_results_callbacks(app):
     )
     def run_calculation(n_clicks, stored_file_data):
         if stored_file_data is None:
-            return "Please upload an Excel file first.", "", "", "", None
+            return "Please upload an Excel file first.", "", "", "", "", None
 
         contents = stored_file_data["contents"]
         filename = stored_file_data["filename"]
@@ -314,9 +269,13 @@ def register_results_callbacks(app):
                 )
             ])
 
+            case_options = [{"label": f"Case {int(case)}", "value": case}
+                            for case in full_df["Case number"]
+            ]
+
             export_box = build_export_box()
             input_box = build_input_box(table1, table2, table3, table4)
-            plot_box = build_plot_results_box(full_df_display)
+            plot_box = build_plot_results_box(case_options)
 
 
             stored_results = {
@@ -328,13 +287,13 @@ def register_results_callbacks(app):
                 f"Calculation successful: {filename}",
                 tabs,
                 export_box,
-                plot_box,
                 input_box,
+                plot_box,
                 stored_results
             )
 
         except Exception as e:
-            return f"Error: {str(e)}", "", "", "", "", None
+            return f"Error: {str(e)}", "", "", "", "",  None
 
         finally:
             if tmp_path and os.path.exists(tmp_path):
@@ -363,3 +322,91 @@ def register_results_callbacks(app):
             "full_results.xlsx",
             index=False
         )
+
+
+    @app.callback(
+    Output("plot-force-h", "figure"),
+    Output("plot-force-v", "figure"),
+    Input("plot-case-1", "value"),
+    Input("plot-case-2", "value"),
+    State("stored-results-data", "data"),
+    prevent_initial_call=True
+    )
+    def update_plot_results(case1, case2, stored_results):
+        import plotly.graph_objects as go
+
+        empty_fig = go.Figure()
+        empty_fig.update_layout(template="plotly_white")
+
+        if not stored_results or case1 is None:
+            return empty_fig, empty_fig
+
+        df = pd.DataFrame(
+            stored_results["data"],
+            columns=stored_results["columns"]
+        )
+
+        harmonics = ["1H", "2H", "4H", "6H", "8H"]
+
+        fig_h = go.Figure()
+        fig_v = go.Figure()
+
+        def add_case_to_figures(case_value, color_h, color_v):
+            row = df[df["Case number"] == case_value]
+            if row.empty:
+                return
+
+            row = row.iloc[0]
+
+            force_h = [
+                row["F_o 1H (N)"],
+                row["F_o 2H (N)"],
+                row["F_o 4H (N)"],
+                row["F_o 6H (N)"],
+                row["F_o 8H (N)"],
+            ]
+            force_v = [
+                row["F_o 1V (N)"],
+                row["F_o 2V (N)"],
+                row["F_o 4V (N)"],
+                row["F_o 6V (N)"],
+                row["F_o 8V (N)"],
+            ]
+
+            fig_h.add_trace(go.Bar(
+                x=harmonics,
+                y=force_h,
+                name=f"Case {int(case_value)}",
+                marker_color=color_h
+            ))
+
+            fig_v.add_trace(go.Bar(
+                x=harmonics,
+                y=force_v,
+                name=f"Case {int(case_value)}",
+                marker_color=color_v
+            ))
+
+        add_case_to_figures(case1, "#24DB82", "#EF773C")
+
+        if case2 is not None and case2 != case1:
+            add_case_to_figures(case2, "#0E5A8A", "#C94C4C")
+
+        fig_h.update_layout(
+            title="Force H",
+            xaxis_title="Harmonics",
+            yaxis_title="Force (N)",
+            template="plotly_white",
+            barmode="group"
+        )
+
+        fig_v.update_layout(
+            title="Force V",
+            xaxis_title="Harmonics",
+            yaxis_title="Force (N)",
+            template="plotly_white",
+            barmode="group"
+        )
+
+        return fig_h, fig_v
+

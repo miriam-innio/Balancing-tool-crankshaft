@@ -39,12 +39,13 @@ def register_upload_callbacks(app):
         Output("results-table", "children", allow_duplicate=True),
         Output("export-section", "children", allow_duplicate=True),
         Output("input-section", "children", allow_duplicate=True),
+        Output("plot-section", "children", allow_duplicate=True),
         Output("stored-results-data", "clear_data", allow_duplicate=True),
         Input("upload-file", "contents"),
         prevent_initial_call=True
     )
     def clear_old_results_on_new_upload(contents):
-        return "", "", "", "", True
+        return "", "", "", "", "", True
 
 
     @app.callback(
@@ -55,13 +56,13 @@ def register_upload_callbacks(app):
         Output("results-table", "children", allow_duplicate=True),
         Output("export-section", "children", allow_duplicate=True),
         Output("input-section", "children", allow_duplicate=True),
-        Output("stored-results-data", "clear_data"),
+        Output("stored-results-data", "clear_data", allow_duplicate=True),
         Output("plot-section", "children", allow_duplicate=True),
         Input("remove-file-button", "n_clicks"),
         prevent_initial_call=True
     )
     def remove_uploaded_file(n_clicks):
-        return True, "No file uploaded yet.", "", "", "", "", "", "", True
+        return True, "No file uploaded yet.", "", "", "", "", "", True, ""
 
     @app.callback(
         Output("uploaded-file-validation", "children"),
