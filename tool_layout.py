@@ -1,7 +1,8 @@
 from dash import Dash, html, dcc
 
 from tool_components import make_upload_component
-from tool_callbacks import register_callbacks
+from tool_callbacks_upload import register_upload_callbacks
+from tool_callbacks_results import register_results_callbacks
 
 app = Dash(__name__, suppress_callback_exceptions=True)
 
@@ -53,7 +54,6 @@ app.layout = html.Div([
 
     dcc.Store(id="stored-file-data"),
     dcc.Store(id="stored-results-data"),
-    dcc.Store(id="stored-input-data"),
 
     html.Div([
         html.Div(
@@ -158,6 +158,7 @@ app.layout = html.Div([
             "marginTop": "25px"
         }
     ),
+
     html.Div(
         id="input-section",
         style={
@@ -165,14 +166,14 @@ app.layout = html.Div([
         }
     ),
 
-
     dcc.Download(id="download-results-excel")
 ], style={
     "fontFamily": "'Segoe UI', Arial, sans-serif",
     "padding": "30px"
 })
 
-register_callbacks(app)
+register_upload_callbacks(app)
+register_results_callbacks(app)
 
 if __name__ == "__main__":
     app.run(debug=True)
