@@ -3,7 +3,7 @@ from dash import Dash, html, dcc
 from tool_components import make_upload_component
 from tool_callbacks import register_callbacks
 
-app = Dash(__name__)
+app = Dash(__name__, suppress_callback_exceptions=True)
 
 app.layout = html.Div([
     html.H1(
@@ -52,6 +52,7 @@ app.layout = html.Div([
     }),
 
     dcc.Store(id="stored-file-data"),
+    dcc.Store(id="stored-results-data"),
 
     html.Div([
         html.Div(
@@ -148,7 +149,16 @@ app.layout = html.Div([
             "marginTop": "20px",
             "fontFamily": "'Segoe UI', Arial, sans-serif"
         }
-    )
+    ),
+
+    html.Div(
+        id="export-section",
+        style={
+            "marginTop": "25px"
+        }
+    ),
+
+    dcc.Download(id="download-results-excel")
 ], style={
     "fontFamily": "'Segoe UI', Arial, sans-serif",
     "padding": "30px"

@@ -1,6 +1,8 @@
 from dash import html, dcc, dash_table
+import pandas as pd
+import numpy as np
 #make_upload_component(), make_table(), tab_style, tab_selected_style
-
+# threshold for displaying small numeric values (=0)
 def make_upload_component():
     return dcc.Upload(
         id="upload-file",
@@ -64,3 +66,16 @@ tab_selected_style = {
     "borderBottom": "1px solid white",
     "borderTop": "3px solid #24DB82"
 }
+
+
+def clean_display_dataframe(df, threshold, decimals):
+    df_clean = df.copy()
+
+    for col in df_clean.columns:
+        if pd.api.types.is_numeric_dtype(df_clean[col]):
+            df_clean[col] = df_clean[col].apply(
+                lambda x: 0 if pd.notna(x) and abs(x) < threshold else x
+            )
+            df_clean[col] = df_clean[col].round(decimals)
+
+    return df_clean
