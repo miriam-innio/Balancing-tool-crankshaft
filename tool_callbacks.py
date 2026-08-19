@@ -269,7 +269,7 @@ def register_callbacks(app):
         prevent_initial_call=True
     )
     def download_results_excel(n_clicks, stored_results):
-        if not stored_results:
+        if not stored_results or n_clicks is None or n_clicks == 0:
             return None
 
         df = pd.DataFrame(
